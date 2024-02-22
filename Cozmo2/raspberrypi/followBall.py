@@ -28,7 +28,7 @@ def set_motors(left_speed, right_speed):
 camera = cv2.VideoCapture(0)  # Modifica il numero della telecamera se necessario
 
 # Definizione dei parametri per il riconoscimento della palla rossa
-lower_red = np.array([1, 100, 100])
+lower_red = np.array([0, 200, 200])
 upper_red = np.array([10, 255, 255])
 
 # Definizione della funzione per il rilevamento e il tracking della palla
@@ -62,15 +62,21 @@ def track_red_ball(frame):
 
 # Definizione della funzione per il controllo del rover
 def control_rover(x, y, frame_center):
+    commands = ''
     if x is not None:
         if x < frame_center - 50:
             set_motors(0.5, -0.5)  # Ruota a sinistra
+            commands='Ruota a sinistra'
         elif x > frame_center + 50:
             set_motors(-0.5, 0.5)  # Ruota a destra
+            commands='Ruota a destra'
         else:
             set_motors(0.5, 0.5)  # Avanza
+            commands='Avanza'
     else:
         set_motors(0, 0)  # Ferma il rover se non vede la palla
+        commands='non vede la palla'
+    return commands
 
 # Definizione dell'app Flask per la visualizzazione del video e il controllo del rover
 app = Flask(__name__)
@@ -80,11 +86,25 @@ def index():
     return render_template('indexfollowball.html')
 
 def gen():
+    font                   = cv2.FONT_HERSHEY_SIMPLEX
+    bottomLeftCornerOfText = (10,100)
+    fontScale              = 1
+    fontColor              = (255,255,255)
+    thickness              = 1
+    lineType               = 2
+
     while True:
         ret, frame = camera.read()
         frame_center = frame.shape[1] // 2
         x, y = track_red_ball(frame)
-        control_rover(x, y, frame_center)
+        commands = control_rover(x, y, frame_center)
+        frame = cv2.putText(frame, commands, 
+                bottomLeftCornerOfText, 
+                font, 
+                fontScale,
+                fontColor,
+                thickness,
+                lineType)
         _, jpeg = cv2.imencode('.jpg', frame)
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + jpeg.tobytes() + b'\r\n')
